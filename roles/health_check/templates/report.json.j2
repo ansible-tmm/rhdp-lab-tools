@@ -1,0 +1,11 @@
+{{ ansible_managed | comment(decoration="// ") }}
+{
+  "lab_name": "{{ __health_check_lab_config['lab_name'] | default('unknown') }}",
+  "timestamp": "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime }}",
+  "summary": {
+    "total": {{ __health_check_total }},
+    "passed": {{ __health_check_passed }},
+    "failed": {{ __health_check_failed }}
+  },
+  "results": {{ __health_check_results | to_nice_json }}
+}

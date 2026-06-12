@@ -1,0 +1,48 @@
+---
+- name: report | Calculate summary statistics
+  ansible.builtin.set_fact:
+    __health_check_total: "{{ __health_check_results | length }}"
+    __health_check_passed: >-
+      {{ __health_check_results |
+      selectattr('passed', 'equalto', true) | list | length }}
+    __health_check_failed: >-
+      {{ __health_check_results |
+      selectattr('passed', 'equalto', false) | list | length }}
+    __health_check_layers: >-
+      {{ __health_check_results |
+      map(attribute='layer') | unique | list }}
+
+- name: report | Display console summary header
+  ansible.builtin.debug:
+    msg: |
+      ===================================================
+      RHDP Lab Health Check Report
+      ===================================================
+      Total: {{ __health_check_total }}  Passed: {{ __health_check_passed }}  Failed: {{ __health_check_failed }}
+      ===================================================
+    verbosity: 0
+
+- name: report | Display results per layer
+  ansible.builtin.debug:
+    msg: |
+      --- {{ item }} ---
+      {% for check in __health_check_results | selectattr('layer', 'equalto', item) %}
+      {{ 'PASS' if check['passed'] else 'FAIL' }}  {{ check['check'] }}
+      {% endfor %}
+    verbosity: 0
+  loop: "{{ __health_check_layers }}"
+
+- name: report | Write JSON report
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/report.json.j2"
+    dest: "{{ health_check_report_path }}"
+    mode: "0644"
+    backup: true
+  when: health_check_report_path | length > 0
+
+- name: report | Fail if any checks failed
+  ansible.builtin.fail:
+    msg: >-
+      Health check failed: {{ __health_check_failed }} of
+      {{ __health_check_total }} checks failed.
+  when: __health_check_failed | int > 0
