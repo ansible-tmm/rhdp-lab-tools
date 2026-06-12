@@ -1,0 +1,82 @@
+---
+argument_specs:
+  main:
+    short_description: "Verify a deployed RHDP lab is fully functional"
+    options:
+      health_check_provider:
+        description: >-
+          Connection provider. "ssh" for direct bastion SSH,
+          "portforward" for OCP port-forward. Empty string auto-detects.
+        type: str
+        default: ""
+        choices: ["", "ssh", "portforward"]
+      health_check_bastion_host:
+        description: "Bastion hostname for SSH provider"
+        type: str
+        default: ""
+      health_check_bastion_user:
+        description: "SSH username for bastion"
+        type: str
+        default: ""
+      health_check_bastion_password:
+        description: "SSH password for bastion"
+        type: str
+      health_check_ocp_api:
+        description: "OCP API URL for port-forward provider"
+        type: str
+        default: ""
+      health_check_ocp_token:
+        description: "OCP bearer token"
+        type: str
+      health_check_ocp_username:
+        description: "OCP username (alternative to token)"
+        type: str
+        default: ""
+      health_check_ocp_password:
+        description: "OCP password (used with username)"
+        type: str
+      health_check_ocp_namespace:
+        description: "OCP namespace containing the lab"
+        type: str
+        default: ""
+      health_check_ocp_validate_certs:
+        description: "Validate OCP API TLS certificates"
+        type: bool
+        default: false
+      health_check_ssh_port:
+        description: "Local port for SSH tunnel in port-forward mode"
+        type: int
+        default: 2222
+      health_check_foundry_config:
+        description: "Path to .foundry.yml config file"
+        type: str
+        default: ""
+      health_check_manifest:
+        description: "Path to standalone lab manifest YAML"
+        type: str
+        default: ""
+      health_check_infra_enabled:
+        description: "Enable infrastructure checks"
+        type: bool
+        default: true
+      health_check_control_enabled:
+        description: "Enable control node checks"
+        type: bool
+        default: true
+      health_check_nodes_enabled:
+        description: "Enable worker node checks"
+        type: bool
+        default: true
+      health_check_cac_enabled:
+        description: "Enable CaC object checks (needs Controller API)"
+        type: bool
+        default: false
+      health_check_content_enabled:
+        description: "Enable Showroom content checks"
+        type: bool
+        default: true
+      health_check_report_path:
+        description: >-
+          Path for JSON report output. Empty string = console only.
+        type: str
+        default: ""

@@ -1,0 +1,14 @@
+---
+- name: Load configuration and platform variables
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/set_vars.yml"
+
+- name: Fail if no config source provided
+  ansible.builtin.fail:
+    msg: >-
+      No lab configuration found. Set health_check_foundry_config or
+      health_check_manifest. See README.md for details.
+  when:
+    - health_check_foundry_config | length == 0
+    - health_check_manifest | length == 0
+    - __health_check_lab_config is not defined

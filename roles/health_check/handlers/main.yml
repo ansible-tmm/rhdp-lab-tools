@@ -1,0 +1,3 @@
+---
+# No handlers — this is a read-only verification role.
+# It never modifies target systems, so no restart/reload handlers are needed.

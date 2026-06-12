@@ -1,0 +1,11 @@
+---
+__health_check_required_facts:
+  - os_family
+  - distribution
+  - distribution_major_version
+
+__health_check_supported_providers:
+  - ssh
+  - portforward
+
+__health_check_results: []

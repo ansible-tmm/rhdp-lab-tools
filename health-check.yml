@@ -1,0 +1,6 @@
+---
+- name: Verify RHDP lab deployment health
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: health_check

@@ -1,0 +1,31 @@
+---
+# Provider
+health_check_provider: ""
+
+# SSH provider (direct bastion access)
+health_check_bastion_host: ""
+health_check_bastion_user: ""
+# health_check_bastion_password:
+
+# OCP provider (port-forward + API queries)
+health_check_ocp_api: ""
+# health_check_ocp_token:
+health_check_ocp_username: ""
+# health_check_ocp_password:
+health_check_ocp_namespace: ""
+health_check_ocp_validate_certs: false
+health_check_ssh_port: 2222
+
+# Config source
+health_check_foundry_config: ""
+health_check_manifest: ""
+
+# Check toggles
+health_check_infra_enabled: true
+health_check_control_enabled: true
+health_check_nodes_enabled: true
+health_check_cac_enabled: false
+health_check_content_enabled: true
+
+# Report
+health_check_report_path: ""
