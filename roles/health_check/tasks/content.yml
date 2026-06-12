@@ -1,0 +1,45 @@
+---
+- name: content | Get showroom route URL
+  ansible.builtin.set_fact:
+    __health_check_showroom_base_url: >-
+      https://{{ (__health_check_routes.resources |
+      selectattr('metadata.name', 'search', 'showroom') |
+      first)['spec']['host'] }}
+  when: >-
+    __health_check_routes is defined and
+    __health_check_routes.resources |
+    selectattr('metadata.name', 'search', 'showroom') | list | length > 0
+
+- name: content | Skip content checks if no showroom route
+  ansible.builtin.debug:
+    msg: "No showroom route found, skipping content checks"
+    verbosity: 1
+  when: __health_check_showroom_base_url is not defined
+
+- name: content | Check showroom module pages
+  ansible.builtin.uri:
+    url: >-
+      {{ __health_check_showroom_base_url }}/modules/{{
+      item }}/index.html
+    validate_certs: false
+    status_code: 200
+    timeout: 10
+  register: __health_check_module_pages
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['content']['showroom_modules'] |
+    default([]) }}
+  loop_control:
+    label: "{{ item }}"
+  when: __health_check_showroom_base_url is defined
+
+- name: content | Record module page results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'content',
+      'check': item['item'] + ' page accessible',
+      'passed': item is not failed}] }}
+  loop: "{{ __health_check_module_pages.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item'] }}"
+  when: __health_check_module_pages is defined
