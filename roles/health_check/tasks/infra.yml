@@ -1,0 +1,110 @@
+---
+- name: infra | Check all pods in namespace
+  redhat.openshift.k8s_info:
+    api_key: "{{ __health_check_ocp_api_key }}"
+    host: "{{ health_check_ocp_api }}"
+    validate_certs: "{{ health_check_ocp_validate_certs }}"
+    kind: Pod
+    namespace: "{{ health_check_ocp_namespace }}"
+  register: __health_check_pods
+
+- name: infra | Record pod status results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'infra',
+      'check': 'Pod ' + item['metadata']['name'] + ' running',
+      'passed': item['status']['phase'] == 'Running'}] }}
+  loop: "{{ __health_check_pods.resources }}"
+  loop_control:
+    label: "{{ item['metadata']['name'] }}"
+
+- name: infra | Check expected VMs exist as services
+  redhat.openshift.k8s_info:
+    api_key: "{{ __health_check_ocp_api_key }}"
+    host: "{{ health_check_ocp_api }}"
+    validate_certs: "{{ health_check_ocp_validate_certs }}"
+    kind: Service
+    namespace: "{{ health_check_ocp_namespace }}"
+    name: "{{ item['name'] }}"
+  register: __health_check_vm_svc
+  loop: "{{ __health_check_lab_config['vms'] | default([]) }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: infra | Record VM service results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'infra',
+      'check': 'VM service ' + item['item']['name'] + ' exists',
+      'passed': item['resources'] | length > 0}] }}
+  loop: "{{ __health_check_vm_svc.results }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: infra | Check showroom pod by label
+  redhat.openshift.k8s_info:
+    api_key: "{{ __health_check_ocp_api_key }}"
+    host: "{{ health_check_ocp_api }}"
+    validate_certs: "{{ health_check_ocp_validate_certs }}"
+    kind: Pod
+    namespace: "{{ health_check_ocp_namespace }}"
+    label_selectors:
+      - "app=showroom"
+  register: __health_check_showroom_pod
+  when: >-
+    __health_check_lab_config['services'] | default([]) |
+    selectattr('name', 'equalto', 'showroom') | list | length > 0
+
+- name: infra | Record showroom pod result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'infra',
+      'check': 'Showroom pod running',
+      'passed': (__health_check_showroom_pod.resources | length > 0) and
+      (__health_check_showroom_pod.resources[0]['status']['phase']
+      == 'Running')}] }}
+  when: __health_check_showroom_pod is defined
+
+- name: infra | Check OpenShift routes
+  redhat.openshift.k8s_info:
+    api_key: "{{ __health_check_ocp_api_key }}"
+    host: "{{ health_check_ocp_api }}"
+    validate_certs: "{{ health_check_ocp_validate_certs }}"
+    kind: Route
+    api_version: route.openshift.io/v1
+    namespace: "{{ health_check_ocp_namespace }}"
+  register: __health_check_routes
+
+- name: infra | Record route results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'infra',
+      'check': 'Route ' + item['metadata']['name'] + ' exists',
+      'passed': true}] }}
+  loop: "{{ __health_check_routes.resources }}"
+  loop_control:
+    label: "{{ item['metadata']['name'] }}"
+
+- name: infra | Check showroom URL responds
+  ansible.builtin.uri:
+    url: >-
+      https://{{ (__health_check_routes.resources |
+      selectattr('metadata.name', 'search', 'showroom') |
+      first)['spec']['host'] }}
+    validate_certs: false
+    status_code: 200
+    timeout: 10
+  register: __health_check_showroom_url
+  ignore_errors: true
+  when: >-
+    __health_check_routes.resources |
+    selectattr('metadata.name', 'search', 'showroom') | list | length > 0
+
+- name: infra | Record showroom URL result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'infra',
+      'check': 'Showroom URL returns HTTP 200',
+      'passed': __health_check_showroom_url is defined and
+      __health_check_showroom_url is not failed}] }}
+  when: __health_check_showroom_url is defined
