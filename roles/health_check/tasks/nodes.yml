@@ -1,0 +1,104 @@
+---
+- name: nodes | Get list of worker nodes from manifest
+  ansible.builtin.set_fact:
+    __health_check_worker_nodes: >-
+      {{ __health_check_lab_config['vms'] |
+      rejectattr('role', 'defined') | list +
+      (__health_check_lab_config['vms'] |
+      selectattr('role', 'defined') |
+      rejectattr('role', 'equalto', 'bastion') | list) }}
+
+- name: nodes | Check SSH connectivity
+  ansible.builtin.wait_for_connection:
+    timeout: 15
+  delegate_to: "{{ item['name'] }}"
+  register: __health_check_node_ssh
+  ignore_errors: true
+  loop: "{{ __health_check_worker_nodes }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: nodes | Record SSH connectivity results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'nodes',
+      'check': item['item']['name'] + ' reachable via SSH',
+      'passed': item is not failed}] }}
+  loop: "{{ __health_check_node_ssh.results }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: nodes | Check passwordless sudo
+  ansible.builtin.command:
+    cmd: sudo -n true
+  delegate_to: "{{ item['name'] }}"
+  register: __health_check_node_sudo
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+  loop: "{{ __health_check_worker_nodes }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: nodes | Record sudo results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'nodes',
+      'check': item['item']['name'] + ' passwordless sudo',
+      'passed': item is not failed}] }}
+  loop: "{{ __health_check_node_sudo.results }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: nodes | Check SELinux status
+  ansible.builtin.command:
+    cmd: getenforce
+  delegate_to: "{{ item['name'] }}"
+  register: __health_check_node_selinux
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+  loop: "{{ __health_check_worker_nodes }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+  when: __health_check_lab_config['nodes']['selinux'] is defined
+
+- name: nodes | Record SELinux results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'nodes',
+      'check': item['item']['name'] + ' SELinux ' +
+      __health_check_lab_config['nodes']['selinux'],
+      'passed': item is not failed and
+      (item.stdout | default('') | lower) ==
+      __health_check_lab_config['nodes']['selinux']}] }}
+  loop: "{{ __health_check_node_selinux.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+  when: __health_check_node_selinux is defined
+
+- name: nodes | Check stopped services
+  ansible.builtin.service_facts:
+  delegate_to: "{{ item['name'] }}"
+  register: __health_check_node_svc_facts
+  ignore_errors: true
+  loop: "{{ __health_check_worker_nodes }}"
+  loop_control:
+    label: "{{ item['name'] }}"
+  when: >-
+    __health_check_lab_config['nodes']['services_stopped'] is defined
+
+- name: nodes | Record stopped service results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'nodes',
+      'check': item[0]['item']['name'] + ' ' + item[1] + ' stopped',
+      'passed': (item[0].ansible_facts.services[item[1] + '.service']
+      ['state'] | default('stopped')) != 'running'}] }}
+  loop: >-
+    {{ __health_check_node_svc_facts.results | default([]) |
+    product(__health_check_lab_config['nodes']['services_stopped'] |
+    default([])) | list }}
+  loop_control:
+    label: "{{ item[0]['item']['name'] }} / {{ item[1] }}"
+  when: __health_check_node_svc_facts is defined
