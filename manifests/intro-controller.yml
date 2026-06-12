@@ -1,0 +1,70 @@
+---
+lab_name: "Intro to AAP Controller"
+lab_type: zero-touch
+
+vms:
+  - name: control
+    role: bastion
+  - name: node1
+  - name: node2
+  - name: node3
+
+services:
+  - name: showroom
+    type: pod
+    label: app=showroom
+    url_check: true
+  - name: gitea
+    type: container
+    optional: true
+
+control_node:
+  python_version: "3.11"
+  venv_path: /tmp/cac-venv
+  ansible_core_version: "2.16"
+  collections:
+    - name: infra.aap_configuration
+      version: "4.6.0"
+    - name: ansible.platform
+      version: "2.5"
+  cac_config_path: /tmp/controller-as-code
+  aap_url: https://localhost
+  aap_username: admin
+
+nodes:
+  expected_user: rhel
+  sudo: passwordless
+  selinux: permissive
+  services_stopped:
+    - nginx
+
+cac_objects:
+  - kind: inventory
+    name: Lab-Inventory
+  - kind: host
+    name: node1
+  - kind: host
+    name: node2
+  - kind: group
+    name: web
+  - kind: project
+    name: Apache playbooks
+  - kind: credential
+    name: lab-credentials
+  - kind: job_template
+    name: Install Apache
+  - kind: workflow
+    name: Your first workflow
+
+content:
+  showroom_modules:
+    - module-01
+    - module-02
+    - module-03
+    - module-04
+    - module-05
+    - module-06
+    - module-07
+    - module-08
+    - module-09
+    - module-10
