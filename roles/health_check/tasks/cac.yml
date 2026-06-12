@@ -1,0 +1,157 @@
+---
+- name: cac | Set Controller connection variables
+  ansible.builtin.set_fact:
+    __health_check_controller_host: >-
+      {{ __health_check_lab_config['control_node']['aap_url'] }}
+    __health_check_controller_user: >-
+      {{ __health_check_lab_config['control_node']['aap_username'] }}
+    __health_check_controller_password: >-
+      {{ health_check_aap_password | default(
+      __health_check_lab_config['control_node']['aap_password'] |
+      default('')) }}
+
+- name: cac | Check inventories exist
+  ansible.controller.inventory:
+    name: "{{ item['name'] }}"
+    organization: Default
+    controller_host: "{{ __health_check_controller_host }}"
+    controller_username: "{{ __health_check_controller_user }}"
+    controller_password: "{{ __health_check_controller_password }}"
+    validate_certs: false
+    state: present
+  check_mode: true
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_inv
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['cac_objects'] | default([]) |
+    selectattr('kind', 'equalto', 'inventory') | list }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: cac | Record inventory results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'cac',
+      'check': 'Inventory "' + item['item']['name'] + '" exists',
+      'passed': item is not failed and item is not changed}] }}
+  loop: "{{ __health_check_cac_inv.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: cac | Check projects exist
+  ansible.controller.project:
+    name: "{{ item['name'] }}"
+    organization: Default
+    controller_host: "{{ __health_check_controller_host }}"
+    controller_username: "{{ __health_check_controller_user }}"
+    controller_password: "{{ __health_check_controller_password }}"
+    validate_certs: false
+    state: present
+  check_mode: true
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_proj
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['cac_objects'] | default([]) |
+    selectattr('kind', 'equalto', 'project') | list }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: cac | Record project results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'cac',
+      'check': 'Project "' + item['item']['name'] + '" exists',
+      'passed': item is not failed and item is not changed}] }}
+  loop: "{{ __health_check_cac_proj.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: cac | Check credentials exist
+  ansible.controller.credential:
+    name: "{{ item['name'] }}"
+    organization: Default
+    credential_type: Machine
+    controller_host: "{{ __health_check_controller_host }}"
+    controller_username: "{{ __health_check_controller_user }}"
+    controller_password: "{{ __health_check_controller_password }}"
+    validate_certs: false
+    state: present
+  check_mode: true
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_cred
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['cac_objects'] | default([]) |
+    selectattr('kind', 'equalto', 'credential') | list }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: cac | Record credential results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'cac',
+      'check': 'Credential "' + item['item']['name'] + '" exists',
+      'passed': item is not failed and item is not changed}] }}
+  loop: "{{ __health_check_cac_cred.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: cac | Check job templates exist
+  ansible.controller.job_template:
+    name: "{{ item['name'] }}"
+    organization: Default
+    controller_host: "{{ __health_check_controller_host }}"
+    controller_username: "{{ __health_check_controller_user }}"
+    controller_password: "{{ __health_check_controller_password }}"
+    validate_certs: false
+    state: present
+  check_mode: true
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_jt
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['cac_objects'] | default([]) |
+    selectattr('kind', 'equalto', 'job_template') | list }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: cac | Record job template results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'cac',
+      'check': 'Job template "' + item['item']['name'] + '" exists',
+      'passed': item is not failed and item is not changed}] }}
+  loop: "{{ __health_check_cac_jt.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: cac | Check workflows exist
+  ansible.controller.workflow_job_template:
+    name: "{{ item['name'] }}"
+    organization: Default
+    controller_host: "{{ __health_check_controller_host }}"
+    controller_username: "{{ __health_check_controller_user }}"
+    controller_password: "{{ __health_check_controller_password }}"
+    validate_certs: false
+    state: present
+  check_mode: true
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_wf
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['cac_objects'] | default([]) |
+    selectattr('kind', 'equalto', 'workflow') | list }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: cac | Record workflow results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'cac',
+      'check': 'Workflow "' + item['item']['name'] + '" exists',
+      'passed': item is not failed and item is not changed}] }}
+  loop: "{{ __health_check_cac_wf.results | default([]) }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
