@@ -1,0 +1,125 @@
+---
+- name: control | Determine bastion host
+  ansible.builtin.set_fact:
+    __health_check_control_host: >-
+      {{ __health_check_lab_config['vms'] |
+      selectattr('role', 'defined') |
+      selectattr('role', 'equalto', 'bastion') |
+      map(attribute='name') | first |
+      default(__health_check_lab_config['vms'][0]['name']) }}
+
+- name: control | Check Python version
+  ansible.builtin.command:
+    cmd: >-
+      python{{ __health_check_lab_config['control_node']['python_version'] }}
+      --version
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_python
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+
+- name: control | Record Python version result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': 'Python ' +
+      __health_check_lab_config['control_node']['python_version'] +
+      ' installed',
+      'passed': __health_check_python is not failed}] }}
+
+- name: control | Check CaC venv exists
+  ansible.builtin.stat:
+    path: >-
+      {{ __health_check_lab_config['control_node']['venv_path'] }}/bin/activate
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_venv
+
+- name: control | Record venv result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': 'CaC venv exists at ' +
+      __health_check_lab_config['control_node']['venv_path'],
+      'passed': __health_check_venv.stat.exists | default(false)}] }}
+
+- name: control | Check ansible-core version in venv
+  ansible.builtin.command:
+    cmd: >-
+      {{ __health_check_lab_config['control_node']['venv_path'] }}/bin/ansible
+      --version
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_ansible_ver
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+
+- name: control | Record ansible-core version result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': 'ansible-core ' +
+      __health_check_lab_config['control_node']['ansible_core_version'] +
+      '.x in venv',
+      'passed': __health_check_ansible_ver is not failed and
+      __health_check_lab_config['control_node']['ansible_core_version']
+      in (__health_check_ansible_ver.stdout | default(''))}] }}
+
+- name: control | Check required collections in venv
+  ansible.builtin.command:
+    cmd: >-
+      {{ __health_check_lab_config['control_node']['venv_path'] }}/bin/ansible-galaxy
+      collection list {{ item['name'] }}
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_collections
+  changed_when: false
+  check_mode: false
+  ignore_errors: true
+  loop: >-
+    {{ __health_check_lab_config['control_node']['collections'] |
+    default([]) }}
+  loop_control:
+    label: "{{ item['name'] }}"
+
+- name: control | Record collection results
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': item['item']['name'] + ' ' +
+      item['item']['version'] + ' installed',
+      'passed': item is not failed and
+      item['item']['version'] in (item.stdout | default(''))}] }}
+  loop: "{{ __health_check_collections.results }}"
+  loop_control:
+    label: "{{ item['item']['name'] }}"
+
+- name: control | Check CaC config directory
+  ansible.builtin.stat:
+    path: "{{ __health_check_lab_config['control_node']['cac_config_path'] }}"
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_cac_dir
+
+- name: control | Record CaC config directory result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': 'CaC config directory exists',
+      'passed': __health_check_cac_dir.stat.exists | default(false) and
+      __health_check_cac_dir.stat.isdir | default(false)}] }}
+
+- name: control | Check AAP Controller API reachable
+  ansible.builtin.uri:
+    url: "{{ __health_check_lab_config['control_node']['aap_url'] }}/api/v2/"
+    validate_certs: false
+    status_code: 200
+    timeout: 10
+  delegate_to: "{{ __health_check_control_host }}"
+  register: __health_check_aap_api
+  ignore_errors: true
+
+- name: control | Record AAP API result
+  ansible.builtin.set_fact:
+    __health_check_results: >-
+      {{ __health_check_results + [{'layer': 'control',
+      'check': 'AAP Controller API reachable',
+      'passed': __health_check_aap_api is not failed}] }}
