@@ -1,0 +1,44 @@
+---
+- name: set_vars | Ensure required facts are available
+  ansible.builtin.setup:
+    gather_subset: min
+  when: >-
+    not ansible_facts.keys() | list |
+    intersect(__health_check_required_facts) == __health_check_required_facts
+
+- name: set_vars | Load platform specific variables
+  ansible.builtin.include_vars: "{{ __health_check_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - >-
+      {{ ansible_facts['distribution'] }}_{{
+      ansible_facts['distribution_major_version'] }}.yml
+    - >-
+      {{ ansible_facts['distribution'] }}_{{
+      ansible_facts['distribution_version'] }}.yml
+  vars:
+    __health_check_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: __health_check_vars_file is file
+
+- name: set_vars | Load foundry config if provided
+  when: health_check_foundry_config | length > 0
+  block:
+    - name: set_vars | Read .foundry.yml
+      ansible.builtin.include_vars:
+        file: "{{ health_check_foundry_config }}"
+        name: __health_check_foundry_raw
+
+    - name: set_vars | Map foundry config to lab config
+      ansible.builtin.set_fact:
+        __health_check_lab_config: "{{ __health_check_foundry_raw }}"
+
+- name: set_vars | Load standalone manifest if provided
+  when:
+    - health_check_manifest | length > 0
+    - __health_check_lab_config is not defined
+  block:
+    - name: set_vars | Read manifest file
+      ansible.builtin.include_vars:
+        file: "{{ health_check_manifest }}"
+        name: __health_check_lab_config
