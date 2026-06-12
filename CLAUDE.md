@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Bash troubleshooting toolkit for RHDP (Red Hat Demo Platform) lab deployments running on OpenShift. Labs use KubeVirt VMs (control, node1-3) with a Showroom pod serving the lab guide.
 
+Also includes an Ansible health-check role (`roles/health_check/`) that provides automated pass/fail verification of deployed labs. Uses `redhat.openshift` for OCP queries and `ansible.controller` for CaC checks.
+
 ## Scripts
 
 - **`rhdp-lab-status.sh`** — One-shot status check. Run directly: `./rhdp-lab-status.sh <namespace>`

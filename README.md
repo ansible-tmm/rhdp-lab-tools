@@ -58,6 +58,22 @@ showroom_status
 ssh_cmd control "cat /tmp/setup-scripts/setup-control.log"
 ```
 
+## Health Check Role
+
+Ansible role that verifies a deployed lab is fully functional. See
+[`roles/health_check/README.md`](roles/health_check/README.md) for full
+documentation.
+
+Quick start:
+
+```bash
+ansible-playbook health-check.yml \
+  -e health_check_ocp_api=https://api.cluster.example.com:6443 \
+  -e health_check_ocp_token=sha256~xxx \
+  -e health_check_ocp_namespace=sandbox-abc12-zt-ansiblebu \
+  -e health_check_manifest=manifests/intro-controller.yml
+```
+
 ## Configuration
 
 All configuration via environment variables — set them in `.env` or export before running.
