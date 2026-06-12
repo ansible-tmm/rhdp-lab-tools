@@ -1,0 +1,25 @@
+---
+- name: portforward | Validate port-forward provider requirements
+  ansible.builtin.fail:
+    msg: >-
+      Port-forward provider requires health_check_ocp_api,
+      health_check_ocp_namespace, and either health_check_ocp_token
+      or health_check_ocp_username + health_check_ocp_password.
+  when: >-
+    health_check_ocp_api | length == 0 or
+    health_check_ocp_namespace | length == 0
+
+- name: portforward | Authenticate to OpenShift
+  redhat.openshift.openshift_auth:
+    host: "{{ health_check_ocp_api }}"
+    username: "{{ health_check_ocp_username | default(omit) }}"
+    password: "{{ health_check_ocp_password | default(omit) }}"
+    api_key: "{{ health_check_ocp_token | default(omit) }}"
+    validate_certs: "{{ health_check_ocp_validate_certs }}"
+  register: __health_check_ocp_auth
+
+- name: portforward | Set OCP connection facts
+  ansible.builtin.set_fact:
+    __health_check_ocp_api_key: >-
+      {{ __health_check_ocp_auth.openshift_auth.api_key }}
+    __health_check_provider_ready: true

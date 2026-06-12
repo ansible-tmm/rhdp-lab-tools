@@ -12,3 +12,76 @@
     - health_check_foundry_config | length == 0
     - health_check_manifest | length == 0
     - __health_check_lab_config is not defined
+
+- name: Auto-detect provider when not specified
+  ansible.builtin.set_fact:
+    health_check_provider: >-
+      {{ (health_check_bastion_host | length > 0) |
+      ternary('ssh', 'portforward') }}
+  when: health_check_provider | length == 0
+
+- name: Validate provider selection
+  ansible.builtin.fail:
+    msg: >-
+      Invalid provider "{{ health_check_provider }}".
+      Supported: {{ __health_check_supported_providers | join(', ') }}
+  when: health_check_provider not in __health_check_supported_providers
+
+- name: Set up connection provider
+  ansible.builtin.include_tasks:
+    file: >-
+      {{ role_path }}/tasks/main_{{ health_check_provider }}.yml
+
+- name: Run infrastructure checks
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/infra.yml"
+    apply:
+      tags:
+        - health_check_infra
+  tags:
+    - health_check_infra
+  when: health_check_infra_enabled
+
+- name: Run control node checks
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/control.yml"
+    apply:
+      tags:
+        - health_check_control
+  tags:
+    - health_check_control
+  when: health_check_control_enabled
+
+- name: Run worker node checks
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/nodes.yml"
+    apply:
+      tags:
+        - health_check_nodes
+  tags:
+    - health_check_nodes
+  when: health_check_nodes_enabled
+
+- name: Run CaC object checks
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/cac.yml"
+    apply:
+      tags:
+        - health_check_cac
+  tags:
+    - health_check_cac
+  when: health_check_cac_enabled
+
+- name: Run content checks
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/content.yml"
+    apply:
+      tags:
+        - health_check_content
+  tags:
+    - health_check_content
+  when: health_check_content_enabled
+
+- name: Generate report
+  ansible.builtin.include_tasks:
+    file: "{{ role_path }}/tasks/report.yml"

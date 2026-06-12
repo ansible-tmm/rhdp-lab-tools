@@ -1,0 +1,46 @@
+---
+- name: ssh | Validate SSH provider requirements
+  ansible.builtin.fail:
+    msg: >-
+      SSH provider requires health_check_bastion_host,
+      health_check_bastion_user, and health_check_bastion_password.
+  when: >-
+    health_check_bastion_host | length == 0 or
+    health_check_bastion_user | length == 0 or
+    health_check_bastion_password is not defined
+
+- name: ssh | Add bastion host to inventory
+  ansible.builtin.add_host:
+    name: "{{ health_check_bastion_host }}"
+    groups: health_check_bastion
+    ansible_user: "{{ health_check_bastion_user }}"
+    ansible_password: "{{ health_check_bastion_password }}"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+
+- name: ssh | Test bastion connectivity
+  ansible.builtin.wait_for_connection:
+    timeout: 30
+  delegate_to: "{{ health_check_bastion_host }}"
+
+- name: ssh | Add node hosts from manifest
+  ansible.builtin.add_host:
+    name: "{{ item['name'] }}"
+    groups: health_check_nodes
+    ansible_user: "{{ health_check_bastion_user }}"
+    ansible_password: "{{ health_check_bastion_password }}"
+    ansible_ssh_common_args: >-
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+      -o ProxyJump={{ health_check_bastion_user }}@{{
+      health_check_bastion_host }}
+  loop: >-
+    {{ __health_check_lab_config['vms'] |
+    rejectattr('name', 'equalto', __health_check_lab_config['vms'] |
+    selectattr('role', 'defined') |
+    selectattr('role', 'equalto', 'bastion') |
+    map(attribute='name') | first | default('')) | list }}
+  when: __health_check_lab_config['vms'] is defined
+
+- name: ssh | Set provider established fact
+  ansible.builtin.set_fact:
+    __health_check_provider_ready: true
